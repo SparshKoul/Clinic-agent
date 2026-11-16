@@ -146,7 +146,7 @@ class KnowledgeIngestor:
         knowledge_dir: str = DEFAULT_KNOWLEDGE_DIR,
         chroma_dir: str = DEFAULT_CHROMA_DIR,
         collection_name: str = DEFAULT_COLLECTION_NAME,
-        chunker: Optional[DocumentChunker] = None
+        chunker: DocumentChunker = None
     ):
         self._knowledge_dir = knowledge_dir
         self._chroma_dir = chroma_dir

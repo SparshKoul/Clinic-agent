@@ -21,7 +21,7 @@ DEFAULT_DB_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data
 # 1. Connection Manager (Encapsulation)
 # =============================================================================
 class DatabaseConnectionManager:
-    """Manages SQLite database connections with PRAGMA foreign keys and Row factories."""
+    """Manages SQLite database connections."""
 
     def __init__(self, db_path: Optional[str] = None):
         self._db_path = db_path or DEFAULT_DB_PATH
@@ -310,6 +310,7 @@ class DoctorRepository(BaseRepository):
             cursor = conn.cursor()
             if specialty and specialty.strip():
                 cursor.execute(
+
                     """
                     SELECT doctor_id, full_name, specialty, qualification, experience_years,
                            languages, room, consultation_fee, working_days, start_time, end_time, slot_minutes

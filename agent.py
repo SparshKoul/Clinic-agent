@@ -163,17 +163,20 @@ class GeminiLLMClient(BaseLLMClient):
                     types.Content(role="user", parts=[types.Part.from_text(text=m["content"])])
                 )
             elif role == "assistant":
-                parts = []
-                if m.get("content"):
-                    parts.append(types.Part.from_text(text=m["content"]))
-                if m.get("tool_calls"):
-                    for tc in m["tool_calls"]:
-                        fn_args = json.loads(tc["function"]["arguments"]) if isinstance(tc["function"]["arguments"], str) else tc["function"]["arguments"]
-                        parts.append(
-                            types.Part.from_function_call(name=tc["function"]["name"], args=fn_args)
-                        )
-                if parts:
-                    formatted_contents.append(types.Content(role="model", parts=parts))
+                if m.get("_raw_candidate_content"):
+                    formatted_contents.append(m["_raw_candidate_content"])
+                else:
+                    parts = []
+                    if m.get("content"):
+                        parts.append(types.Part.from_text(text=m["content"]))
+                    if m.get("tool_calls"):
+                        for tc in m["tool_calls"]:
+                            fn_args = json.loads(tc["function"]["arguments"]) if isinstance(tc["function"]["arguments"], str) else tc["function"]["arguments"]
+                            parts.append(
+                                types.Part.from_function_call(name=tc["function"]["name"], args=fn_args)
+                            )
+                    if parts:
+                        formatted_contents.append(types.Content(role="model", parts=parts))
             elif role == "tool":
                 try:
                     resp_dict = json.loads(m["content"]) if isinstance(m["content"], str) else m["content"]
@@ -192,7 +195,7 @@ class GeminiLLMClient(BaseLLMClient):
                 )
 
         response = client.models.generate_content(
-            model=self.model_name or "gemini-2.5-flash",
+            model=self.model_name or "gemini-3.1-flash-lite",
             contents=formatted_contents,
             config=types.GenerateContentConfig(
                 system_instruction=system_instruction,
@@ -201,7 +204,16 @@ class GeminiLLMClient(BaseLLMClient):
             )
         )
 
-        res: Dict[str, Any] = {"role": "assistant", "content": response.text or ""}
+        text_parts = []
+        if response.candidates and response.candidates[0].content and response.candidates[0].content.parts:
+            for p in response.candidates[0].content.parts:
+                if getattr(p, "text", None):
+                    text_parts.append(p.text)
+        model_text = "".join(text_parts)
+
+        res: Dict[str, Any] = {"role": "assistant", "content": model_text}
+        if response.candidates and response.candidates[0].content:
+            res["_raw_candidate_content"] = response.candidates[0].content
         if response.function_calls:
             res["tool_calls"] = [
                 {
@@ -242,7 +254,7 @@ class LLMClientFactory:
             )
         elif chosen_provider == "gemini" and gemini_key:
             return GeminiLLMClient(
-                model_name=model or os.getenv("LLM_MODEL", "gemini-2.5-flash"),
+                model_name=model or os.getenv("LLM_MODEL", "gemini-3.1-flash-lite"),
                 api_key=gemini_key
             )
         elif groq_key:
@@ -252,7 +264,7 @@ class LLMClientFactory:
             )
         elif gemini_key:
             return GeminiLLMClient(
-                model_name=model or "gemini-2.5-flash",
+                model_name=model or "gemini-3.1-flash-lite",
                 api_key=gemini_key
             )
 
